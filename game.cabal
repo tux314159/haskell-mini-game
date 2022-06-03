@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.5.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 
@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Printers
   other-modules:
       Paths_game
   hs-source-dirs:
@@ -34,6 +35,7 @@ library
       base >=4.7 && <5
     , lens ==5.*
     , mtl >=2.2 && <3
+    , random >=1.2 && <2
   default-language: Haskell2010
 
 executable game-exe
@@ -48,6 +50,7 @@ executable game-exe
     , game
     , lens ==5.*
     , mtl >=2.2 && <3
+    , random >=1.2 && <2
   default-language: Haskell2010
 
 test-suite game-test
@@ -63,4 +66,5 @@ test-suite game-test
     , game
     , lens ==5.*
     , mtl >=2.2 && <3
+    , random >=1.2 && <2
   default-language: Haskell2010

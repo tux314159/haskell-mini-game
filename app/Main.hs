@@ -1,13 +1,17 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BlockArguments #-}
 
 module Main where
 
 import Control.Lens
 import Control.Monad.State
-import Lib
 import System.Exit
+import System.Random
 import Text.Printf
 import Control.Monad
+
+import Lib
+import Printers
 
 gameloop :: StateT GameState IO ()
 gameloop = do
@@ -18,37 +22,36 @@ gameloop = do
   let (action, nst) = st
    in case action of
         "attack" -> do
-          lift $ putStrLn "You attack the monster."
-          lift (execStateT (monsterAddHp (-10)) gamestate) >>= put
-          newstate <- get
-          lift $ putStrLn $ printf "Monster's HP: %d/100" $ _monsterHp newstate
+          lift $ storyPrint "You attack the monster."
+          r <- getStdRandom (randomR (-10, -1))
+          put =<< lift (execStateT (monsterAddHp r) gamestate)
+          lift . storyPrint . printf "Monster's HP: %d/100" . _monsterHp =<< get
         "heal" -> do
-          lift $ putStrLn "You heal a bit."
-          lift (execStateT (playerAddHp 5) gamestate) >>= put
+          r <- getStdRandom (randomR (4, 8))
+          lift $ storyPrint "You heal a bit."
+          put =<< lift (execStateT (playerAddHp r) gamestate)
         "idle" -> do
-          lift $ putStrLn "You just stand there."
-        "run" -> do
-          lift $ putStrLn "You run away."
-          lift exitSuccess
+          lift $ storyPrint "You just stand there."
+        "run" -> lift do
+          storyPrint "You run away."
+          exitSuccess
         _ -> error "Impossible!"
 
   mhp <- use monsterHp
   when (mhp <= 0) $ lift do
-       putStrLn "You slay the monster."
+       storyPrint "You slay the monster."
        exitSuccess
 
   -- monster's turn
-  lift $ putStrLn "The monster swings its club at you."
-  playerAddHp (-4)
+  lift $ storyPrint "The monster swings its club at you."
+  playerAddHp =<< getStdRandom (randomR (-10, -1))
 
   php <- use playerHp
   when (php <= 0) $ lift do
-       putStrLn "You have been killed by the monster."
+       storyPrint "You have been killed by the monster."
        exitFailure
 
   gameloop
-
-
 
 main :: IO ()
 main = evalStateT gameloop (GameState {_playerHp = 100, _monsterHp = 100})
