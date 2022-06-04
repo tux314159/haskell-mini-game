@@ -1,35 +1,52 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.State
+import qualified Data.Text as T
+import Game.Character.Character
+import Game.Character.Monster
+import Game.Character.Player
+import Game.GameState
+import Game.Lib
+import Game.Printers
 import System.Exit
 import System.Random
 import Text.Printf
-import Control.Monad
 
-import Lib
-import Printers
+actionPromptCons :: [String] -> GameState -> String
+actionPromptCons actions gamestate =
+  printf
+    "You can %s. What do you do?\n[HP: %d/100]> "
+    (hrChoiceGen actions)
+    (gamestate ^. player . characterHp)
 
 gameloop :: StateT GameState IO ()
 gameloop = do
   gamestate <- get
 
   -- player's turn
-  st <- lift $ runStateT (doPrompt ["attack", "heal", "idle", "run"]) gamestate
+  st <-
+    lift $
+      runStateT
+        (doMultiPrompt <*> actionPromptCons $ ["attack", "heal", "idle", "run"])
+        gamestate
+
   let (action, nst) = st
    in case action of
         "attack" -> do
           lift $ storyPrint "You attack the monster."
           r <- getStdRandom (randomR (-10, -1))
-          put =<< lift (execStateT (monsterAddHp r) gamestate)
-          lift . storyPrint . printf "Monster's HP: %d/100" . _monsterHp =<< get
+          monster %= characterAddHp r
+          lift . storyPrint . printf "Monster's HP: %d/100" $ gamestate ^. player . characterHp
         "heal" -> do
-          r <- getStdRandom (randomR (4, 8))
           lift $ storyPrint "You heal a bit."
-          put =<< lift (execStateT (playerAddHp r) gamestate)
+          r <- getStdRandom (randomR (4, 8))
+          player %= characterAddHp r
         "idle" -> do
           lift $ storyPrint "You just stand there."
         "run" -> lift do
@@ -37,21 +54,40 @@ gameloop = do
           exitSuccess
         _ -> error "Impossible!"
 
-  mhp <- use monsterHp
+  mhp <- use $ monster . characterHp
   when (mhp <= 0) $ lift do
-       storyPrint "You slay the monster."
-       exitSuccess
+    storyPrint "You slay the monster."
+    exitSuccess
 
   -- monster's turn
   lift $ storyPrint "The monster swings its club at you."
-  playerAddHp =<< getStdRandom (randomR (-10, -1))
+  r <- getStdRandom (randomR (-10, -1))
+  player %= characterAddHp r
 
-  php <- use playerHp
+  php <- use $ player . characterHp
   when (php <= 0) $ lift do
-       storyPrint "You have been killed by the monster."
-       exitFailure
+    storyPrint "You have been killed by the monster."
+    exitFailure
 
   gameloop
 
+initialState :: GameState
+initialState =
+  GameState
+    { _player =
+        Player
+          { _playerHp = 100,
+            _playerName = ""
+          },
+      _monster =
+        Monster
+          { _monsterHp = 100,
+            _monsterName = ""
+          }
+    }
+
 main :: IO ()
-main = evalStateT gameloop (GameState {_playerHp = 100, _monsterHp = 100})
+main =
+  evalStateT
+    gameloop
+    initialState

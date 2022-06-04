@@ -1,8 +1,8 @@
-module Printers where
+module Game.Printers where
 
 import System.IO
 
-import Lib
+import Game.Lib
 
 storyFmt :: String -> String
 storyFmt = (:) ' ' . (++ "\n")
