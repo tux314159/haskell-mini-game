@@ -18,12 +18,13 @@ import System.Exit
 import System.Random
 import Text.Printf
 
-actionPromptCons :: [String] -> GameState -> String
+actionPromptCons :: [T.Text] -> GameState -> T.Text
 actionPromptCons actions gamestate =
-  printf
-    "You can %s. What do you do?\n[HP: %d/100]> "
-    (hrChoiceGen actions)
-    (gamestate ^. player . characterHp)
+  T.pack $
+    printf
+      "You can %s. What do you do?\n[HP: %d/100]> "
+      (T.unpack $ hrChoiceGen actions)
+      (gamestate ^. player . characterHp)
 
 gameloop :: StateT GameState IO ()
 gameloop = do

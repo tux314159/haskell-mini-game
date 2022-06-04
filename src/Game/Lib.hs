@@ -1,29 +1,32 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Game.Lib where
 
 import Control.Lens
 import Control.Monad.State
 import Data.List (intercalate)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Game.GameState
 import System.IO
 
-hrChoiceGen :: [String] -> String
+hrChoiceGen :: [T.Text] -> T.Text
 hrChoiceGen choices =
-  intercalate ", " (init choices) ++ " or " ++ last choices
+  T.intercalate ", " (init choices) `T.append` " or " `T.append` last choices
 
 -- this is written this way so you can use functions as applicatives; doPrompt <*> promptGen $ ...
--- the constructors should be of type [String] -> GameState -> String
-doMultiPrompt :: [String] -> (GameState -> String) -> StateT GameState IO String
+-- the constructors should be of type [T.Text] -> GameState -> T.Text
+doMultiPrompt :: [T.Text] -> (GameState -> T.Text) -> StateT GameState IO T.Text
 doMultiPrompt actions promptfn =
-  let actstr = intercalate ", " (init actions) ++ " or " ++ last actions
+  let actstr = T.intercalate ", " (init actions) `T.append` " or " `T.append` last actions
    in do
         gamestate <- get
         lift $ do
-          putStr $ promptfn gamestate
+          T.putStr $ promptfn gamestate
 
           hFlush stdout
-          choice <- getLine
+          choice <- T.getLine
           if choice `elem` actions
             then return choice
             else putStr "That's not an option. "
