@@ -4,11 +4,16 @@ import Control.Lens
 import qualified Data.Text as T
 
 class Character a where
-  characterHp :: Lens' a Int
-  characterName :: Lens' a T.Text
+  hp :: Lens' a Int
+  name :: Lens' a T.Text
+  addHp :: Int -> a -> a
 
-characterAddHp :: Character a => Int -> a -> a
-characterAddHp n character =
-  let php = character ^. characterHp
-   in characterHp .~ (if php + n > 100 && php + n < 0 then 0 else n) $
-        character
+-- the standard hp adding
+addHp' :: Character a => Int -> a -> a
+addHp' n character
+  | chp + n < 0 = sethp 0
+  | chp + n > 100 = sethp 100
+  | otherwise = sethp $ chp + n
+  where
+    chp = character ^. hp
+    sethp n = hp .~ chp $ character

@@ -18,59 +18,26 @@ import System.Exit
 import System.Random
 import Text.Printf
 
-actionPromptCons :: [T.Text] -> GameState -> T.Text
-actionPromptCons actions gamestate =
-  T.pack $
-    printf
-      "You can %s. What do you do?\n[HP: %d/100]> "
-      (T.unpack $ hrChoiceGen actions)
-      (gamestate ^. player . characterHp)
+main :: IO ()
+main =
+  execStateT setPlayerName initialState
+    >>= execStateT printIntro
+      >>= evalStateT gameLoop
+  where
+    setPlayerName =
+      get >>= \st ->
+        (player . name .=)
+          =<< lift (evalStateT (doOpenPrompt askNameCons) st)
 
-gameloop :: StateT GameState IO ()
-gameloop = do
-  gamestate <- get
-
-  -- player's turn
-  st <-
-    lift $
-      runStateT
-        (doMultiPrompt <*> actionPromptCons $ ["attack", "heal", "idle", "run"])
-        gamestate
-
-  let (action, nst) = st
-   in case action of
-        "attack" -> do
-          lift $ storyPrint "You attack the monster."
-          r <- getStdRandom (randomR (-10, -1))
-          monster %= characterAddHp r
-          lift . storyPrint . printf "Monster's HP: %d/100" $ gamestate ^. player . characterHp
-        "heal" -> do
-          lift $ storyPrint "You heal a bit."
-          r <- getStdRandom (randomR (4, 8))
-          player %= characterAddHp r
-        "idle" -> do
-          lift $ storyPrint "You just stand there."
-        "run" -> lift do
-          storyPrint "You run away."
-          exitSuccess
-        _ -> error "Impossible!"
-
-  mhp <- use $ monster . characterHp
-  when (mhp <= 0) $ lift do
-    storyPrint "You slay the monster."
-    exitSuccess
-
-  -- monster's turn
-  lift $ storyPrint "The monster swings its club at you."
-  r <- getStdRandom (randomR (-10, -1))
-  player %= characterAddHp r
-
-  php <- use $ player . characterHp
-  when (php <= 0) $ lift do
-    storyPrint "You have been killed by the monster."
-    exitFailure
-
-  gameloop
+    printIntro :: StateT GameState IO ()
+    printIntro = do
+      st <- get
+      lift $
+        storyPrint $
+          printf
+            "You are %s, with the following skills: %s"
+            (st ^. player . name)
+            (show $ st ^. player . traits)
 
 initialState :: GameState
 initialState =
@@ -78,7 +45,8 @@ initialState =
     { _player =
         Player
           { _playerHp = 100,
-            _playerName = ""
+            _playerName = "",
+            _traits = [Medic]
           },
       _monster =
         Monster
@@ -87,8 +55,64 @@ initialState =
           }
     }
 
-main :: IO ()
-main =
-  evalStateT
-    gameloop
-    initialState
+-- some prompt constructors
+
+actionPromptCons :: [T.Text] -> GameState -> T.Text
+actionPromptCons actions gameState =
+  T.pack $
+    printf
+      "You can %s. What do you do?\n[HP: %d/100]> "
+      (T.unpack $ hrChoiceGen actions)
+      (gameState ^. player . hp)
+
+askNameCons :: GameState -> T.Text
+askNameCons = pure "Enter your name: "
+
+-- main game loop
+
+gameLoop :: StateT GameState IO ()
+gameLoop = do
+  gameState <- get
+
+  -- player's turn
+  st <-
+    lift $
+      runStateT
+        (doMultiPrompt <*> actionPromptCons $ ["attack", "heal", "idle", "run"])
+        gameState
+
+  let (action, nst) = st
+   in case action of
+        "attack" -> do
+          lift $ storyPrint "You attack the monster."
+          r <- getStdRandom (randomR (-10, -1))
+          monster %= addHp r
+          newState <- get
+          lift . storyPrint . printf "Monster's HP: %d/100" $ newState ^. monster . hp
+        "heal" -> do
+          lift $ storyPrint "You heal a bit."
+          r <- getStdRandom (randomR (4, 8))
+          player %= addHp r
+        "idle" -> do
+          lift $ storyPrint "You just stand there."
+        "run" -> lift do
+          storyPrint "You run away."
+          exitSuccess
+        _ -> error "Impossible!"
+
+  mhp <- use $ monster . hp
+  when (mhp <= 0) $ lift do
+    storyPrint "You slay the monster."
+    exitSuccess
+
+  -- monster's turn
+  lift $ storyPrint "The monster swings its club at you."
+  r <- getStdRandom (randomR (-10, -1))
+  player %= addHp r
+
+  php <- use $ player . hp
+  when (php <= 0) $ lift do
+    storyPrint "You have been killed by the monster."
+    exitFailure
+
+  gameLoop

@@ -1,5 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Game.Lib where
 
@@ -18,16 +18,23 @@ hrChoiceGen choices =
 -- this is written this way so you can use functions as applicatives; doPrompt <*> promptGen $ ...
 -- the constructors should be of type [T.Text] -> GameState -> T.Text
 doMultiPrompt :: [T.Text] -> (GameState -> T.Text) -> StateT GameState IO T.Text
-doMultiPrompt actions promptfn =
-  let actstr = T.intercalate ", " (init actions) `T.append` " or " `T.append` last actions
-   in do
-        gamestate <- get
-        lift $ do
-          T.putStr $ promptfn gamestate
+doMultiPrompt actions promptfn = do
+  gamestate <- get
+  lift $ do
+    T.putStr $ promptfn gamestate
 
-          hFlush stdout
-          choice <- T.getLine
-          if choice `elem` actions
-            then return choice
-            else putStr "That's not an option. "
-              >> evalStateT (doMultiPrompt actions promptfn) gamestate
+    hFlush stdout
+    choice <- T.getLine
+    if choice `elem` actions
+      then return choice
+      else
+        putStr "That's not an option. "
+          >> evalStateT (doMultiPrompt actions promptfn) gamestate
+
+doOpenPrompt :: (GameState -> T.Text) -> StateT GameState IO T.Text
+doOpenPrompt promptfn = do
+  gamestate <- get
+  lift $ do
+    T.putStr $ promptfn gamestate
+    hFlush stdout
+    T.getLine

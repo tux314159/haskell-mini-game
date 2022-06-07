@@ -14,8 +14,11 @@ data Monster = Monster
   { _monsterHp :: Int,
     _monsterName :: T.Text
   }
+  deriving (Show)
+
 makeLenses ''Monster
 
 instance Character Monster where
-  characterHp = monsterHp
-  characterName = monsterName
+  hp = monsterHp
+  name = monsterName
+  addHp = addHp'
